@@ -1,0 +1,940 @@
+---
+title: "MHC-Voice: MHC heterozygosity and vocal acoustic parameters: Little support for the immunocompetence Handicap Hypothesis in humans (main analysis)"
+author: "S.K"
+date: "2026-03-08"
+output: html_document
+---
+
+
+
+```{r, results=FALSE, message=FALSE, warning=FALSE}
+library(lme4)
+library(lmerTest)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(patchwork)
+library(car)
+library(rstatix)
+library(readxl)
+library(patchwork)
+library(plotly)
+library(emmeans)
+
+```
+
+
+```{r, include=FALSE}
+MHCNEW <- read_excel("../data/MHCdata-final2.xlsx")
+
+```
+
+
+
+```{r}
+
+
+MHCNEW <- MHCNEW %>%  
+  rename(sample = Collaborators)
+MHCNEW <- MHCNEW %>%  
+  rename(Height = Height_cm) 
+MHCNEW <- MHCNEW %>%  
+  rename(Weight = Weight_kg)
+
+MHCNEW1 <- MHCNEW
+
+
+str(MHCNEW)
+```
+
+```{r}
+
+
+
+MHCNEW$Height <- scale(MHCNEW$Height)
+
+
+MHCNEW$zPfnew <- (scale(MHCNEW$f1new) + scale(MHCNEW$f2new) + scale(MHCNEW$f3new) + scale(MHCNEW$f4new))/4
+MHCNEW$zF0new <- scale(MHCNEW$zF0new)
+MHCNEW$Weight <- scale(MHCNEW$Weight)
+
+MHCNEW$Sex <- as.factor(MHCNEW$Sex)
+```
+
+```{r}
+cohens_d(MHCNEW, zF0new ~ Sex, var.equal = FALSE)
+cohens_d(MHCNEW, zPfnew ~ Sex, var.equal = FALSE)
+```
+
+
+```{r}
+t.test(MHCNEW$zF0new ~ MHCNEW$Sex)
+t_test_result <- t.test(zF0new ~ Sex, data = MHCNEW)  
+
+```
+
+
+
+```{r, warning=FALSE}
+MHC.variablity.plot <- ggplot(
+  MHCNEW,
+  aes(
+    x = factor(Sex, labels = c("Male", "Female")),
+    y = zF0new,
+    fill = factor(Sex, labels = c("Male", "Female")),
+    color = factor(Sex, labels = c("Male", "Female"))
+  )
+) +
+
+
+    geom_violin(
+    width = 0.7,
+    alpha = 0.35,
+    linewidth = 0.6,
+    trim = FALSE
+  ) +
+
+
+    geom_jitter(
+    width = 0.06,
+    size = 1.6,
+    alpha = 0.45
+  ) +
+
+
+    stat_summary(
+    fun.data = median_hilow,
+    fun.args = list(conf.int = 0.5),
+    geom = "pointrange",
+    color = "black",
+    linewidth = 0.5
+  ) +
+
+  scale_fill_manual(values = c("Male" = "#005f73", "Female" = "#ca6702")) +
+  scale_color_manual(values = c("Male" = "#005f73", "Female" = "#ca6702")) +
+
+  labs(
+    x = NULL,
+    y = expression("Scaled F"[0])
+  ) +
+
+  theme_classic(base_size = 12, base_family = "serif") +
+
+  theme(
+    legend.position = "none",
+    axis.line = element_line(linewidth = 0.6),
+    axis.ticks = element_line(linewidth = 0.5),
+    axis.text = element_text(size = 14, color = "black"),
+    axis.title.y = element_text(size = 14, margin = margin(r = 10)),
+    plot.margin = margin(10, 15, 10, 10)
+  )
+MHC.variablity.plot
+
+
+```
+
+```{r}
+
+
+leveneTest(as.numeric(MHCNEW$zF0new) ~ MHCNEW$Sex)
+leveneTest(as.numeric(MHCNEW$zPfnew) ~ MHCNEW$Sex)
+
+
+
+MHCNEW$zF0HeightAdj <- NA  
+MHCNEW$zF0HeightAdj[!is.na(MHCNEW$zF0new) & !is.na(MHCNEW$Height)] <- lm(as.numeric(zF0new) ~ Height, data = MHCNEW)$residuals
+MHCNEW$zPfHeightAdj <- NA  
+MHCNEW$zPfHeightAdj[!is.na(MHCNEW$zPfnew) & !is.na(MHCNEW$Height)] <- lm(as.numeric(zPfnew) ~ Height, data = MHCNEW)$residuals  
+
+
+
+MHC1 <- subset(MHCNEW, subset = !is.na(MHCNEW$zPfnew & MHCNEW$Height))
+MHC1$zPfHeightAdj <- lm(as.numeric(MHC1$zPfnew)~MHC1$Height)$residuals 
+
+leveneTest(zF0HeightAdj~ Sex, data = MHCNEW)
+leveneTest(zPfHeightAdj~ Sex, data = MHC1)
+
+```
+
+
+
+```{r, warning=FALSE}
+  
+MHCNEW1$Sex <- as.factor(MHCNEW1$Sex)
+MHCNEW1$zPfnew <- (scale(MHCNEW1$f1new) + scale(MHCNEW1$f2new) + scale(MHCNEW1$f3new) + scale(MHCNEW1$f4new))/4
+
+figMHC1a <- ggplot(data = MHCNEW1, aes(x = zF0new, group = Sex, fill = Sex)) +  
+  geom_density(alpha = 0.5) +  
+  theme_classic(base_size = 11) +  
+  xlab("Fundamental Frequency") +  
+  scale_fill_manual(  
+    values = c("2" = "#fca311", "1" = "#14213d"),  
+    labels = c("2" = "Female", "1" = "Male")  
+  )  
+
+
+
+
+figMHC1b <- ggplot(data = MHCNEW1, aes(x = zPfnew, group = Sex, fill = Sex)) +  
+  geom_density(alpha = 0.5) +  
+  theme_classic(base_size = 11) +  
+  xlab("Formant Position") +  
+  scale_fill_manual(  
+    values = c("2" = "#fca311", "1" = "#14213d"),  
+    labels = c("2" = "Female", "1" = "Male")  
+  ) 
+
+
+
+
+figMHC1c <- ggplot(data = MHCNEW1, aes(x = f1new, group = Sex, fill = Sex)) +  
+  geom_density(alpha = 0.5) +  
+  theme_classic(base_size = 11) +  
+  xlab("Formant 1") +  
+  scale_fill_manual(  
+    values = c("2" = "#fca311", "1" = "#14213d"),  
+    labels = c("2" = "Female", "1" = "Male")  
+  ) 
+
+
+
+
+figMHC1d <- ggplot(data = MHCNEW1, aes(x = f2new, group = Sex, fill = Sex)) +  
+  geom_density(alpha = 0.5) +  
+  theme_classic(base_size = 11) +  
+  xlab("Formant 2") +  
+  scale_fill_manual(  
+    values = c("2" = "#fca311", "1" = "#14213d"),  
+    labels = c("2" = "Female", "1" = "Male")  
+  )  
+
+
+
+
+figMHC1e <- ggplot(data = MHCNEW1, aes(x = f3new, group = Sex, fill = Sex)) +  
+  geom_density(alpha = 0.5) +  
+  theme_classic(base_size = 11) +  
+  xlab("Formant 3") +  
+  scale_fill_manual(  
+    values = c("2" = "#fca311", "1" = "#14213d"),  
+    labels = c("2" = "Female", "1" = "Male")  
+  )
+
+
+
+
+figMHC1f <- ggplot(data = MHCNEW1, aes(x = f4new, group = Sex, fill = Sex)) +  
+  geom_density(alpha = 0.5) +  
+  theme_classic(base_size = 11) +  
+  xlab("Formant 4") +  
+  scale_fill_manual(  
+    values = c("2" = "#fca311", "1" = "#14213d"),  
+    labels = c("2" = "Female", "1" = "Male")  
+  ) 
+
+
+
+
+
+
+combined_plot <- (figMHC1c + figMHC1d)/   
+   (figMHC1e + figMHC1f)/   
+   (figMHC1b + figMHC1a  ) +   
+  plot_layout(guides = "collect") &  
+  theme(legend.position = "bottom")  
+
+
+print(combined_plot)
+
+```
+
+
+
+```{r}
+
+MHCNEW$Age <- as.numeric(MHCNEW$Age)
+MHCNEW$sample <- factor(MHCNEW$sample)
+
+```
+
+
+
+```{r}
+
+#Predicting F0 and Pf from Height with covariates
+modelMHC1 <- lmer(zF0new ~ Height + Sex + Age + Weight + (1|sample) + (1|Family), data = MHCNEW)
+summary(modelMHC1)
+modelMHC2 <- lmer(zPfnew ~ Height + Sex + Age + Weight +  (1|sample) + (1|Family), data = MHCNEW)
+summary(modelMHC2)
+
+```
+
+
+```{r}
+
+#Test for model fitness
+modelMHC1 <- lmer(
+  zF0new ~ Height + Sex + Age + Weight + (1|sample) + (1|Family),
+  data = MHCNEW,
+  REML = FALSE
+)
+
+modelMHC1.fitness <- lmer(
+  zF0new ~ Height * Sex + Age + Weight + (1|sample) + (1|Family),
+  data = MHCNEW,
+  REML = FALSE
+)
+
+anova(modelMHC1, modelMHC1.fitness)
+
+```
+
+```{r}
+
+
+#Predicting whether regression estimate of height on F0 and Pf differs between males and females 
+lstrends(lmer(zF0new ~ Height * Sex + Age + Weight + (1|sample) + (1|Family), data = MHCNEW), ~ Sex, var = "Height")
+pairs(lstrends(lmer(zF0new ~ Height * Sex + Age + Weight + (1|sample) + (1|Family), data = MHCNEW), ~ Sex, var = "Height"))
+lstrends(lmer(zPfnew ~ Height * Sex + Age + Weight + (1|sample) + (1|Family), data = MHCNEW), ~ Sex, var = "Height")
+pairs(lstrends(lmer(zPfnew ~ Height * Sex + Age + Weight + (1|sample) + (1|Family), data = MHCNEW), ~ Sex, var = "Height"))
+
+
+```
+
+
+
+```{r}
+
+#Hypothesis 2
+#Predicting Height from MHC 
+modelMHC3 <- lmer(Height ~ ZMHCTotal + Sex + Age + Weight +  (1|sample) + (1|Family), data = MHCNEW)
+summary(modelMHC3)
+
+
+```
+
+```{r}
+
+
+#Predicting whether regression estimate of ZMHCTotal on Height and Pf differs between males and females 
+lstrends(lmer(Height ~ ZMHCTotal * Sex + Age + Weight + (1|sample) + (1|Family), data = MHCNEW), ~ Sex, var = "ZMHCTotal")
+pairs(lstrends(lmer(Height ~ ZMHCTotal * Sex + Age + Weight + (1|sample) + (1|Family), data = MHCNEW), ~ Sex, var = "ZMHCTotal"))
+
+
+
+```
+
+```{r}
+
+#Hypothesis 3
+#Predicting ZMHCTotal from MHC 
+modelMHC4 <- lmer(zF0new ~ ZMHCTotal + Height + Sex + Age + Weight + (1|sample) + (1|Family), data = MHCNEW)
+summary(modelMHC4)
+modelMHC5 <- lmer(zPfnew ~ ZMHCTotal + Height + Sex + Age + Weight + (1|sample) + (1|Family), data = MHCNEW)
+summary(modelMHC5)
+
+```
+
+
+
+```{r}
+
+#Predicting whether regression estimate of MHC on F0 and Pf differs between males and females 
+lstrends(lmer(zF0new ~ ZMHCTotal*Sex + Height + Age + Weight + (1|sample) + (1|Family), data = MHCNEW), ~ Sex, var = "ZMHCTotal")
+pairs(lstrends(lmer(zF0new ~ ZMHCTotal*Sex + Height + Age + Weight + (1|sample) + (1|Family), data = MHCNEW), ~ Sex, var = "ZMHCTotal"))
+lstrends(lmer(zPfnew ~ ZMHCTotal*Sex + Height + Age + Weight + (1|sample) + (1|Family), data = MHCNEW), ~ Sex, var = "ZMHCTotal")
+pairs(lstrends(lmer(zPfnew ~ ZMHCTotal*Sex + Height + Age + Weight + (1|sample) + (1|Family), data = MHCNEW), ~ Sex, var = "ZMHCTotal"))
+
+
+```
+
+
+
+### Figures
+
+
+```{r, warning=FALSE}
+
+figMHC2a <- ggplot(data = MHCNEW, aes(x = ZMHCTotal, y = zF0new)) +  
+  geom_point(aes(color = Sex)) +
+  theme_classic(base_size = 15) +  
+  xlab("MHC Heterozygosity") +  
+  ylab("Fundamental Frequency") +  
+  geom_smooth(data = subset(MHCNEW, Sex == "1"), method = "lm", se = TRUE, 
+              color = "#006d77", linewidth = 1.3, show.legend = FALSE) +  
+  
+  geom_smooth(data = subset(MHCNEW, Sex == "2"), method = "lm", se = TRUE, 
+              color = "#fca311", linewidth = 1.3, show.legend = FALSE) +  
+  
+  scale_color_manual(  
+    values = c("2" = "#f2cc8f", "1" = "#118ab2"),  
+    labels = c("2" = "Female", "1" = "Male")  
+  )  
+
+figMHC2b <- ggplot(data = MHCNEW, aes(x = ZMHCTotal, y = zPfnew)) +  
+  geom_point(aes(color = Sex)) +  
+  theme_classic(base_size = 15) +  
+  xlab("MHC Heterozygosity") +  
+  ylab("Formant Position") +  
+  geom_smooth(data = subset(MHCNEW, Sex == "1"), method = "lm", se = TRUE, 
+              color = "#006d77", linewidth = 1.3, show.legend = FALSE) + 
+  
+  geom_smooth(data = subset(MHCNEW, Sex == "2"), method = "lm", se = TRUE, 
+              color = "#fca311", linewidth = 1.3, show.legend = FALSE) +  
+  
+  scale_color_manual(  
+    values = c("2" = "#f2cc8f", "1" = "#118ab2"),
+    labels = c("2" = "Female", "1" = "Male")  
+  )  
+
+Fig.MHC.1 <- figMHC2a + figMHC2b +  
+  plot_layout(guides = "collect") &  
+  theme(legend.position = "bottom")
+Fig.MHC.1
+```
+
+
+
+
+
+```{r, warning=FALSE}
+
+
+figMHC3a <- ggplot(data = MHCNEW, aes(x = ZMHCTotal, y = Height)) +  
+  geom_point(aes(color = Sex)) + 
+  theme_classic(base_size = 15) +  
+  xlab("MHC Heterozygosity") +  
+  ylab("Height") +  
+  geom_smooth(data = subset(MHCNEW, Sex == "1"), method = "lm", se = TRUE, 
+              color = "#006d77", linewidth = 1.3, show.legend = FALSE) +  
+  geom_smooth(data = subset(MHCNEW, Sex == "2"), method = "lm", se = TRUE, 
+              color = "#fca311", linewidth = 1.3, show.legend = FALSE) + 
+  scale_color_manual(  
+    values = c("2" = "#f2cc8f", "1" = "#118ab2"), 
+    labels = c("2" = "Female", "1" = "Male")  
+  )  
+
+figMHC3b <- ggplot(data = MHCNEW, aes(x = ZMHCTotal, y = Weight)) +  
+  geom_point(aes(color = Sex)) +  
+  theme_classic(base_size = 15) +  
+  xlab("MHC Heterozygosity") +  
+  ylab("Weight") +  
+  geom_smooth(data = subset(MHCNEW, Sex == "1"), method = "lm", se = TRUE, 
+              color = "#006d77", linewidth = 1.3, show.legend = FALSE) + 
+  geom_smooth(data = subset(MHCNEW, Sex == "2"), method = "lm", se = TRUE, 
+              color = "#fca311", linewidth = 1.3, show.legend = FALSE) + 
+  scale_color_manual(  
+    values = c("2" = "#f2cc8f", "1" = "#118ab2"),  
+    labels = c("2" = "Female", "1" = "Male")  
+  )  
+
+Fig.MHC.2 <- figMHC3a + figMHC3b +  
+  plot_layout(guides = "collect") &  
+  theme(legend.position = "bottom") 
+Fig.MHC.2
+```
+
+
+
+
+```{r, warning=FALSE}
+
+
+figMHC4a <- ggplot(data = MHCNEW, aes(x = Height, y = zF0new)) +  
+  geom_point(aes(color = Sex)) + 
+  theme_classic(base_size = 15) +  
+  xlab("Height") +  
+  ylab("Fundamental Frequency") +  
+  geom_smooth(data = subset(MHCNEW, Sex == "1"), method = "lm", se = TRUE, 
+              color = "#006d77", linewidth = 1.3, show.legend = FALSE) +  
+  geom_smooth(data = subset(MHCNEW, Sex == "2"), method = "lm", se = TRUE, 
+              color = "#fca311", linewidth = 1.3, show.legend = FALSE) + 
+  scale_color_manual(  
+    values = c("2" = "#f2cc8f", "1" = "#118ab2"), 
+    labels = c("2" = "Female", "1" = "Male")  
+  )  
+
+figMHC4b <- ggplot(data = MHCNEW, aes(x = Height, y = zPfnew)) +  
+  geom_point(aes(color = Sex)) +  
+  theme_classic(base_size = 15) +  
+  xlab("Height") +  
+  ylab("Formant Position") +  
+  geom_smooth(data = subset(MHCNEW, Sex == "1"), method = "lm", se = TRUE, 
+              color = "#006d77", linewidth = 1.3, show.legend = FALSE) + 
+  geom_smooth(data = subset(MHCNEW, Sex == "2"), method = "lm", se = TRUE, 
+              color = "#fca311", linewidth = 1.3, show.legend = FALSE) + 
+  scale_color_manual(  
+    values = c("2" = "#f2cc8f", "1" = "#118ab2"),  
+    labels = c("2" = "Female", "1" = "Male")  
+  )  
+
+Fig.MHC.3 <- figMHC4a + figMHC4b +  
+  plot_layout(guides = "collect") &  
+  theme(legend.position = "bottom")
+
+Fig.MHC.3
+```
+
+
+```{r, warning=FALSE}
+
+
+figMHC5a <- ggplot(data = MHCNEW, aes(x = Weight, y = zF0new)) +  
+  geom_point(aes(color = Sex)) + 
+  theme_classic(base_size = 15) +  
+  xlab("Weight") +  
+  ylab("Fundamental Frequency") +  
+  geom_smooth(data = subset(MHCNEW, Sex == "1"), method = "lm", se = TRUE, 
+              color = "#006d77", linewidth = 1.3, show.legend = FALSE) +  
+  geom_smooth(data = subset(MHCNEW, Sex == "2"), method = "lm", se = TRUE, 
+              color = "#fca311", linewidth = 1.3, show.legend = FALSE) + 
+  scale_color_manual(  
+    values = c("2" = "#f2cc8f", "1" = "#118ab2"), 
+    labels = c("2" = "Female", "1" = "Male")  
+  )  
+
+figMHC5b <- ggplot(data = MHCNEW, aes(x = Weight, y = zPfnew)) +  
+  geom_point(aes(color = Sex)) +  
+  theme_classic(base_size = 15) +  
+  xlab("Weight") +  
+  ylab("Formant Position") +  
+  geom_smooth(data = subset(MHCNEW, Sex == "1"), method = "lm", se = TRUE, 
+              color = "#006d77", linewidth = 1.3, show.legend = FALSE) + 
+  geom_smooth(data = subset(MHCNEW, Sex == "2"), method = "lm", se = TRUE, 
+              color = "#fca311", linewidth = 1.3, show.legend = FALSE) + 
+  scale_color_manual(  
+    values = c("2" = "#f2cc8f", "1" = "#118ab2"),  
+    labels = c("2" = "Female", "1" = "Male")  
+  )   
+
+
+Fig.MHC.4<- figMHC5a + figMHC5b +  
+  plot_layout(guides = "collect") &  
+  theme(legend.position = "bottom")
+
+Fig.MHC.4
+```
+
+
+```{r}
+ggsave(filename = "Fig.MHC.4.png",
+       plot = Fig.MHC.4,
+       width = 6,  
+       height = 4, 
+       units = "in", 
+       dpi = 300)
+```
+
+
+```{r}
+
+MHCNEW1_m <- MHCNEW %>% filter(Sex == 1)
+MHCNEW1_f <- MHCNEW %>% filter(Sex == 2)
+
+
+MHCNEW1_m_3dplot <- MHCNEW1_m %>%
+  filter(is.finite(Weight), is.finite(ZMHCTotal), is.finite(zF0new))
+```
+
+```{r}
+cor_pval <- function(df, vars) {
+  results <- list()
+  pairs <- combn(vars, 2, simplify = FALSE)
+  for (p in pairs) {
+    test <- cor.test(df[[p[1]]], df[[p[2]]], use = "complete.obs")
+    results[[paste(p[1], "~", p[2])]] <- data.frame(
+      var1  = p[1],
+      var2  = p[2],
+      r     = round(test$estimate, 3),
+      p     = round(test$p.value, 4)
+    )
+  }
+  bind_rows(results)
+}
+
+vars <- c("zF0new", "ZMHCTotal", "Height", "Weight", "zPfnew")
+
+cat("=== Males ===\n")
+print(cor_pval(MHCNEW1_m, vars), row.names = FALSE)
+
+cat("\n=== Females ===\n")
+print(cor_pval(MHCNEW1_f, vars), row.names = FALSE)
+```
+
+
+
+```{r}
+## only on males and females seperatly
+modelMHC1_m1 <- lmer(zF0new ~ ZMHCTotal*(Weight) +Height + Age + (1|sample) + (1|Family), data = MHCNEW1_m)
+summary(modelMHC1_m1)
+modelMHC2_m1 <- lmer(zPfnew ~ ZMHCTotal *(Weight) +Height + Age + (1|sample) + (1|Family), data = MHCNEW1_m)
+summary(modelMHC2_m1)
+
+
+```
+
+
+
+
+```{r}
+MHCNEW1_m_3dplot <- MHCNEW1_m %>%
+  filter(!is.na(Weight) & !is.na(ZMHCTotal) & !is.na(zF0new) & !is.na(Age))
+
+
+MHCNEW1_m_3dplot <- MHCNEW1_m_3dplot %>%
+  mutate(
+    meanPitch_resid = resid(
+      lm(zF0new ~ Height+ Age + sample,
+           data = MHCNEW1_m_3dplot)
+    )
+  )
+global_weight_median <- median(MHCNEW1_m_3dplot$Weight, na.rm = TRUE)
+
+MHCNEW1_m_3dplot <- MHCNEW1_m_3dplot %>%
+  mutate(
+    weight_group = ifelse(Weight >= global_weight_median,
+                        "High Weight", "Low Weight"),
+    weight_group = factor(weight_group,
+                        levels = c("Low Weight", "High Weight"))
+  )
+MHCNEW1_m_3dplot <- MHCNEW1_m_3dplot %>%
+  filter(
+    meanPitch_resid > (mean(meanPitch_resid) - 3 * sd(meanPitch_resid)) &
+    meanPitch_resid < (mean(meanPitch_resid) + 3 * sd(meanPitch_resid))
+  )
+
+
+p_global_split <- ggplot(MHCNEW1_m_3dplot, aes(x = ZMHCTotal, y = meanPitch_resid, color = weight_group)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm", se = TRUE) +
+  labs(
+    x = "Testostrone (Log Transformed)
+    Males",
+    y = "Fundamental Frequency (Resid.)",
+    color = "Weight levels" 
+  ) +
+  theme_bw() +
+  facet_wrap(~ weight_group, scales = "free_x") +
+  theme(legend.position = "none",
+    axis.title.x = element_text(size = 15),  
+    axis.title.y = element_text(size = 15), 
+  strip.text = element_text(size = 14))
+
+print(p_global_split)
+```
+
+```{r}
+ggsave(
+  filename = "p_global_split.png", 
+  plot = p_global_split,            
+  width = 6,                 
+  height = 5,      
+  dpi = 300    
+)
+```
+
+
+```{r}
+model_low <- lm(zF0new ~ ZMHCTotal+Weight +Height+ Age + sample,
+                data = MHCNEW1_m_3dplot %>% filter(weight_group == "Low Weight"))
+
+model_high <- lm(zF0new ~ ZMHCTotal +Weight + Age+Height + sample,
+                 data = MHCNEW1_m_3dplot %>% filter(weight_group == "High Weight"))
+
+summary(model_low)
+summary(model_high)
+```
+
+```{r, warning=FALSE}
+MHCNEW1_m_3dplot <- MHCNEW1_m %>%
+  filter(is.finite(Weight), is.finite(ZMHCTotal), is.finite(zF0new))
+
+modelMHC1_m1.3dplot2 <- lm(
+  scale(zF0new) ~ scale(ZMHCTotal) * scale(Weight) + Age,
+  data = MHCNEW1_m_3dplot
+)
+
+
+h_min2 <- min(MHCNEW1_m_3dplot$Weight, na.rm = TRUE)
+h_max2 <- max(MHCNEW1_m_3dplot$Weight, na.rm = TRUE)
+mhc_min2 <- min(MHCNEW1_m_3dplot$ZMHCTotal, na.rm = TRUE)
+mhc_max2 <- max(MHCNEW1_m_3dplot$ZMHCTotal, na.rm = TRUE)
+
+h_range2 <- seq(h_min2, h_max2, length.out = 50)
+mhc_range2 <- seq(mhc_min2, mhc_max2, length.out = 50)
+
+
+predict_grid2_mhc <- expand_grid(ZMHCTotal = mhc_range2, Weight = h_range2) %>%
+  mutate(Age = mean(MHCNEW1_m_3dplot$Age, na.rm = TRUE)) 
+
+
+predict_grid2_mhc$Predicted_zPfnew <- predict(
+  modelMHC1_m1.3dplot2,
+  newdata = predict_grid2_mhc,
+  re.form = NA
+)
+
+
+Z_matrix2 <- predict_grid2_mhc %>%
+
+    filter(is.finite(Predicted_zPfnew)) %>%
+  
+  pivot_wider(
+    id_cols = ZMHCTotal,
+    names_from = Weight,
+    values_from = Predicted_zPfnew
+  ) %>%
+
+  select(-ZMHCTotal) %>%
+
+  as.matrix()
+
+x_range <- range(h_range2)
+y_range <- range(mhc_range2)
+z_range <- range(Z_matrix2, na.rm = TRUE)
+                 
+                 
+p <- plot_ly(
+  x = h_range2, 
+  y = mhc_range2, 
+  z = Z_matrix2, 
+  type = "surface",
+  showscale = FALSE, 
+  colorscale = list(
+    c(0, "#0a9396"),    
+    c(0.69, "#ffba08"),
+    c(1, "#ffba08")       
+  ),
+  contours = list(
+    x = list(show = TRUE, color = "white", width = 1),
+    y = list(show = TRUE, color = "white", width = 1),
+    z = list(show = FALSE)
+  )
+) 
+
+# Bottom face
+p <- p %>% add_trace(x = c(x_range[1], x_range[2]), y = c(y_range[1], y_range[1]), z = c(z_range[1], z_range[1]), 
+                     type = "scatter3d", mode = "dot", line = list(color = "black", width = 3), showlegend = FALSE, hoverinfo = "none")
+p <- p %>% add_trace(x = c(x_range[2], x_range[2]), y = c(y_range[1], y_range[2]), z = c(z_range[1], z_range[1]), 
+                     type = "scatter3d", mode = "lines", line = list(color = "black", width = 3), showlegend = FALSE, hoverinfo = "none")
+p <- p %>% add_trace(x = c(x_range[2], x_range[1]), y = c(y_range[2], y_range[2]), z = c(z_range[1], z_range[1]), 
+                     type = "scatter3d", mode = "lines", line = list(color = "black", width = 3), showlegend = FALSE, hoverinfo = "none")
+p <- p %>% add_trace(x = c(x_range[1], x_range[1]), y = c(y_range[2], y_range[1]), z = c(z_range[1], z_range[1]), 
+                     type = "scatter3d", mode = "lines", line = list(color = "black", width = 3), showlegend = FALSE, hoverinfo = "none")
+
+# Top face
+p <- p %>% add_trace(x = c(x_range[1], x_range[2]), y = c(y_range[1], y_range[1]), z = c(z_range[2], z_range[2]), 
+                     type = "scatter3d", mode = "dot", line = list(color = "gray", width = 3), showlegend = FALSE, hoverinfo = "none")
+p <- p %>% add_trace(x = c(x_range[2], x_range[2]), y = c(y_range[1], y_range[2]), z = c(z_range[2], z_range[2]), 
+                     type = "scatter3d", mode = "lines", line = list(color = "gray", width = 3, dash = "dash"), showlegend = FALSE, hoverinfo = "none")
+p <- p %>% add_trace(x = c(x_range[2], x_range[1]), y = c(y_range[2], y_range[2]), z = c(z_range[2], z_range[2]), 
+                     type = "scatter3d", mode = "lines", line = list(color = "black", width = 3, dash = "dash"), showlegend = FALSE, hoverinfo = "none")
+p <- p %>% add_trace(x = c(x_range[1], x_range[1]), y = c(y_range[2], y_range[1]), z = c(z_range[2], z_range[2]), 
+                     type = "scatter3d", mode = "lines", line = list(color = "black", width = 3), showlegend = FALSE, hoverinfo = "none")
+
+# Vertical edges 
+p <- p %>% add_trace(x = c(x_range[1], x_range[1]), y = c(y_range[1], y_range[1]), z = c(z_range[1], z_range[2]), 
+                     type = "scatter3d", mode = "dot", line = list(color = "black", width = 3), showlegend = FALSE, hoverinfo = "none")
+p <- p %>% add_trace(x = c(x_range[2], x_range[2]), y = c(y_range[1], y_range[1]), z = c(z_range[1], z_range[2]), 
+                     type = "scatter3d", mode = "lines", line = list(color = "gray", width = 3), showlegend = FALSE, hoverinfo = "none")
+p <- p %>% add_trace(x = c(x_range[2], x_range[2]), y = c(y_range[2], y_range[2]), z = c(z_range[1], z_range[2]), 
+                     type = "scatter3d", mode = "lines", line = list(color = "black", width = 3,  dash = "dash"), showlegend = FALSE, hoverinfo = "none")
+p <- p %>% add_trace(x = c(x_range[1], x_range[1]), y = c(y_range[2], y_range[2]), z = c(z_range[1], z_range[2]), 
+                     type = "scatter3d", mode = "lines", line = list(color = "black", width = 3), showlegend = FALSE, hoverinfo = "none")
+
+
+p <- p %>% layout(
+  scene = list(aspectmode = 'manual', 
+    aspectratio = list(
+      x = 1,  
+      y = 1, 
+      z = 1 
+    ),
+    title = " ",
+    xaxis = list(
+      title = "Body Mass",
+      showgrid = FALSE,
+      showline = FALSE,
+      showspikes = TRUE,
+      spikecolor = 'black',
+      spikethickness = 1,
+      showbackground = TRUE,
+      zeroline = FALSE,
+      bgcolor = 'white'
+    ),
+    yaxis = list(
+      title = "MHC Heterozygosity",
+      showgrid = FALSE,
+      showline = FALSE,
+      showspikes = TRUE,
+      spikecolor = 'black',
+      spikethickness = 1,
+      showbackground = TRUE,
+      zeroline = FALSE,
+      bgcolor = 'white'
+    ),
+    zaxis = list(
+      title = "Fundamental Frequency",
+      showgrid = FALSE,
+      showline = FALSE,
+      showspikes = TRUE,
+      spikecolor = 'black',
+      spikethickness = 1,
+      showbackground = TRUE,
+      zeroline = FALSE,
+      bgcolor = 'white'
+    )
+  ),
+  annotations = list(
+    x = 1.1, 
+    y = 0.95,  
+    showarrow = TRUE, 
+    xref = "paper", 
+    yref = "paper"
+  )
+)
+
+p
+
+
+
+```
+
+
+```{r}
+
+####### descriptive
+summary_stats0 <- MHCNEW %>%  
+  group_by(sample, Sex) %>%  
+  summarise(  
+    mean_zF0new = mean(zF0new, na.rm = TRUE),  
+    sd_zF0new = sd(zF0new, na.rm = TRUE),  
+    max_zF0new = max(zF0new, na.rm = TRUE),  
+    min_zF0new = min(zF0new, na.rm = TRUE)  
+  )  
+
+print(summary_stats0, n = Inf)
+
+
+
+
+
+
+summary_stats <- MHCNEW %>%  
+  group_by(sample, Sex) %>%  
+  summarise(   
+    
+    mean_zPfnew = mean(zPfnew, na.rm = TRUE),  
+    sd_zPfnew = sd(zPfnew, na.rm = TRUE),  
+    max_zPfnew = max(zPfnew, na.rm = TRUE),  
+    min_zPfnew = min(zPfnew, na.rm = TRUE)  
+  )  
+
+print(summary_stats, n = Inf)
+
+
+summary_stats1 <- MHCNEW %>%
+  group_by(sample, Sex) %>%
+  summarise(
+    across(
+      c(f1new, f2new, f3new, f4new),
+      list(
+        mean = ~mean(.x, na.rm = TRUE),
+        sd   = ~sd(.x, na.rm = TRUE),
+        max  = ~max(.x, na.rm = TRUE),
+        min  = ~min(.x, na.rm = TRUE)
+      ),
+      .names = "{.col}_{.fn}"
+    ),
+    .groups = "drop"
+  )
+
+print(summary_stats1, n = Inf)
+
+```
+
+
+#### Anlysis after exluding one person from each sibling pair (N=57)
+
+
+```{r, include=FALSE}
+MHCNEW.excluded <- read_excel("../data/MHCdata-final2.xlsx", sheet = "After exclusions")
+
+```
+
+
+
+```{r}
+MHCNEW.excluded <- MHCNEW.excluded %>%  
+  rename(Sex = Sex1male2female)
+
+MHCNEW.excluded <- MHCNEW.excluded %>%  
+  rename(sample = Collaborators)
+MHCNEW.excluded <- MHCNEW.excluded %>%  
+  rename(Height = Height_cm) 
+MHCNEW.excluded <- MHCNEW.excluded %>%  
+  rename(Weight = Weight_kg)
+
+
+str(MHCNEW.excluded)
+```
+
+```{r}
+
+
+
+MHCNEW.excluded$Height <- scale(MHCNEW.excluded$Height)
+
+
+MHCNEW.excluded$zPfnew <- (scale(MHCNEW.excluded$f1new) + scale(MHCNEW.excluded$f2new) + scale(MHCNEW.excluded$f3new) + scale(MHCNEW.excluded$f4new))/4
+MHCNEW.excluded$zF0new <- scale(MHCNEW.excluded$zF0new)
+MHCNEW.excluded$Weight <- scale(MHCNEW.excluded$Weight)
+
+MHCNEW.excluded$Sex <- as.factor(MHCNEW.excluded$Sex)
+```
+
+
+```{r}
+
+modelMHCNEW.excluded1 <- lmer(zF0new ~ Height + Sex + Age + Weight + (1|sample), data = MHCNEW.excluded)
+summary(modelMHCNEW.excluded1)
+modelMHCNEW.excluded2 <- lmer(zPfnew ~ Height + Sex + Age + Weight + (1|sample), data = MHCNEW.excluded)
+summary(modelMHCNEW.excluded2)
+
+```
+
+
+```{r}
+
+modelMHCNEW.excluded3 <- lmer(Height ~ ZMHCTotal + Sex + Age + Weight + (1|sample), data = MHCNEW.excluded)
+summary(modelMHCNEW.excluded3)
+
+
+```
+
+```{r}
+
+modelMHCNEW.excluded4 <- lmer(zF0new ~ ZMHCTotal + Height + Sex + Age + Weight + (1|sample), data = MHCNEW.excluded)
+summary(modelMHCNEW.excluded4)
+modelMHCNEW.excluded5 <- lmer(zPfnew ~ ZMHCTotal + Height + Sex + Age + Weight + (1|sample), data = MHCNEW.excluded)
+summary(modelMHCNEW.excluded5)
+
+```
+
+```{r}
+
+MHCNEW.excluded_m <- MHCNEW.excluded %>% filter(Sex == 1)
+MHCNEW.excluded_f <- MHCNEW.excluded %>% filter(Sex == 2)
+
+modelMHCNEW.excluded1_m1 <- lmer(zF0new ~ ZMHCTotal*(Weight) +Height + Age +(1|sample), data = MHCNEW.excluded_m)
+summary(modelMHCNEW.excluded1_m1)
+modelMHCNEW.excluded2_m1 <- lmer(zPfnew ~ ZMHCTotal *(Weight) +Height + Age +(1|sample), data = MHCNEW.excluded_m)
+summary(modelMHCNEW.excluded2_m1)
+
+
+```
+
+
+
+
+
