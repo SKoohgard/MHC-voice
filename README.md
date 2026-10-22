@@ -2,7 +2,7 @@
 
 Data and analysis code for:
 
-> Koohgard S, Aung T, Arnocky S, Hill AK, Welling LLM, Quillen EE, Cárdenas RA, Dawood K, Shriver MD, Puts DA. MHC heterozygosity and vocal acoustic parameters: no support for the immunocompetence handicap hypothesis in humans. (Submitted to *PLOS Biology*.)
+> Koohgard S, Aung T, Arnocky S, Hill AK, Welling LLM, Quillen EE, Cárdenas RA, Dawood K, Shriver MD, Puts DA. MHC heterozygosity and vocal acoustic parameters: no support for the immunocompetence handicap hypothesis in humans.
 
 Contact: David A. Puts (dap27@psu.edu)
 
