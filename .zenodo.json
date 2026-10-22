@@ -1,0 +1,28 @@
+{
+  "title": "Data and code for: MHC heterozygosity and vocal acoustic parameters: no support for the immunocompetence handicap hypothesis in humans",
+  "upload_type": "dataset",
+  "description": "De-identified participant-level data (N = 960 young adults from three U.S. and Canadian samples) and R Markdown analysis code testing whether vocal fundamental frequency and formant frequencies are associated with heterozygosity at the major histocompatibility complex (MHC), height, and sex. The dataset includes vocal acoustic measures, height, weight, age, sex, sample, MHC and genome-wide heterozygosity indices, and genetic principal components. The code reproduces all analyses, tables and figures. See README.md for file and variable descriptions.",
+  "creators": [
+    {"name": "Koohgard, Saeed", "affiliation": "Department of Anthropology, Pennsylvania State University"},
+    {"name": "Aung, Toe", "affiliation": "Department of Psychology and Counseling, Immaculata University"},
+    {"name": "Arnocky, Steven", "affiliation": "Department of Psychology, Nipissing University"},
+    {"name": "Hill, Alexander K.", "affiliation": "Department of Anthropology, University of Washington"},
+    {"name": "Welling, Lisa L. M.", "affiliation": "Department of Psychology, Oakland University"},
+    {"name": "Quillen, Ellen E.", "affiliation": "Department of Internal Medicine, Wake Forest University School of Medicine"},
+    {"name": "Cárdenas, Rodrigo A.", "affiliation": "Department of Psychology, Pennsylvania State University"},
+    {"name": "Dawood, Khytam", "affiliation": "Department of Psychology, Pennsylvania State University"},
+    {"name": "Shriver, Mark D.", "affiliation": "Department of Anthropology, Pennsylvania State University"},
+    {"name": "Puts, David A.", "affiliation": "Department of Anthropology, Pennsylvania State University"}
+  ],
+  "keywords": [
+    "voice",
+    "fundamental frequency",
+    "formant frequencies",
+    "major histocompatibility complex",
+    "immunocompetence handicap hypothesis",
+    "sexual selection",
+    "honest signaling"
+  ],
+  "license": "cc0-1.0",
+  "access_right": "open"
+}
